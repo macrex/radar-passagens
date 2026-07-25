@@ -139,5 +139,7 @@ Heurísticas e formato do mapa: `references/estrategia-compra.md`.
 ## Delegação
 
 Buscas com varredura de período ou múltiplas rotas: delegue ao agent
-`passagens-buscador` passando rota(s), datas/janela e flexibilidade; ele roda
-os scripts, valida e devolve só o resumo ranqueado.
+`passagens-buscador` (definição em `agents/passagens-buscador.md` — copie para a
+pasta de agents do seu ambiente, ex.: `~/.claude/agents/`) passando rota(s),
+datas/janela, flexibilidade e o caminho do repo; ele roda os scripts, valida e
+devolve só o resumo ranqueado, mantendo as consultas brutas fora do contexto.

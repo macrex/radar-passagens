@@ -32,6 +32,14 @@ A metabusca (Kayak/Skyscanner) exige **Google Chrome instalado**: o anti-bot des
 
 Para expor como skill do seu agente, aponte a pasta de skills para o clone (ex.: symlink em `~/.claude/skills/radar-passagens`) ou passe o caminho do repo ao agente.
 
+### Subagente incluso (opcional)
+
+`agents/passagens-buscador.md` é um subagente pronto que roda os scripts, valida e devolve só o resumo ranqueado — as consultas brutas (JSON grande) ficam fora do contexto principal. Útil em varredura de período e múltiplas rotas. Para usar no Claude Code, copie para `~/.claude/agents/`:
+
+```bash
+cp agents/passagens-buscador.md ~/.claude/agents/
+```
+
 ## Instalação — versão lite
 
 No Gemini: **Gems** → novo Gem → cole `lite/INSTRUCOES.md` no campo de instruções e anexe `lite/conhecimento.md` como arquivo de conhecimento. Em GPTs (Instructions + Knowledge) e Claude Projects o processo é análogo.
