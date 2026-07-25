@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Spike go/no-go: mede a cobertura do cache Aviasales em rotas BR.
 
-Gate do design 2026-07-23 (docs/superpowers/specs/): a fonte aviasales-cache
+Gate do design 2026-07-23 (registrado no historico do repo): a fonte aviasales-cache
 so entra no fluxo da skill se o cache tiver densidade util em rotas BR.
 
 Uso:

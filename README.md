@@ -14,31 +14,50 @@ Duas versões da mesma coisa no mesmo repositório — o agente escolhe sozinho 
 
 ### Regra de seleção
 
-1. O agente consegue executar código? Teste: `python3 scripts/buscar_voos.py --help` → **versão completa**.
-2. Não consegue, ou os scripts falham por dependência/rede → **versão lite**, avisando o usuário que está em modo lite.
+1. Rode `python3 <pasta-da-skill>/scripts/checar_ambiente.py` (caminho absoluto — o cwd costuma ser o projeto do usuário, não a skill).
+2. `modo_recomendado: "completa"` ou `"completa-sem-metabusca"` → **versão completa**. Metabusca ausente não derruba para a lite: a 3ª fonte é opcional e fail-open.
+3. `"instalar-dependencias"` → tente **uma vez** o `comando_install` do JSON e recheque.
+4. Só cai para a **versão lite** se não houver como executar código, ou se a instalação falhar — avisando o usuário e entregando o `comando_install` para habilitar a completa depois.
 
 Nunca misturar as duas no mesmo relatório: ou os números vêm dos scripts, ou vêm do protocolo da lite.
 
 ## Instalação — versão completa
 
+Clone direto para a pasta de skills do agente:
+
 ```bash
-git clone https://github.com/macrex/radar-passagens.git
-cd radar-passagens
-pip install fast-flights typing_extensions requests playwright
+git clone https://github.com/macrex/radar-passagens.git ~/.claude/skills/radar-passagens
+pip install -r ~/.claude/skills/radar-passagens/requirements.txt
+```
+
+Se preferir manter o clone em outro lugar, faça um symlink em `~/.claude/skills/radar-passagens` apontando para ele (ou passe o caminho do repo ao agente).
+
+Metabusca Kayak/Skyscanner (3ª fonte, opcional):
+
+```bash
+pip install -r ~/.claude/skills/radar-passagens/requirements-extra.txt
 python -m playwright install chromium
 ```
 
-A metabusca (Kayak/Skyscanner) exige **Google Chrome instalado**: o anti-bot desses sites barra o Chromium empacotado do Playwright, mas aceita o Chrome real — inclusive em modo headless.
+Exige também **Google Chrome instalado**: o anti-bot desses sites barra o Chromium empacotado do Playwright, mas aceita o Chrome real — inclusive em modo headless.
 
-Para expor como skill do seu agente, aponte a pasta de skills para o clone (ex.: symlink em `~/.claude/skills/radar-passagens`) ou passe o caminho do repo ao agente.
+**PEP 668**: em Debian/Ubuntu recentes o `pip` recusa instalar no Python do sistema (`externally-managed-environment`) — acrescente `--break-system-packages` ou instale dentro de um venv.
+
+Smoke-test pós-instalação:
+
+```bash
+python3 ~/.claude/skills/radar-passagens/scripts/checar_ambiente.py
+```
 
 ### Subagente incluso (opcional)
 
-`agents/passagens-buscador.md` é um subagente pronto que roda os scripts, valida e devolve só o resumo ranqueado — as consultas brutas (JSON grande) ficam fora do contexto principal. Útil em varredura de período e múltiplas rotas. Para usar no Claude Code, copie para `~/.claude/agents/`:
+`.claude/agents/passagens-buscador.md` é um subagente pronto que roda os scripts, valida e devolve só o resumo ranqueado — as consultas brutas (JSON grande) ficam fora do contexto principal. Útil em varredura de período, ano inteiro e múltiplas rotas. Com este repo aberto como projeto, o Claude Code já o descobre; para uso global, copie para `~/.claude/agents/`:
 
 ```bash
-cp agents/passagens-buscador.md ~/.claude/agents/
+cp .claude/agents/passagens-buscador.md ~/.claude/agents/
 ```
+
+O campo `skills:` do agente só pré-carrega o `SKILL.md` se a skill estiver instalada em `~/.claude/skills/radar-passagens`; fora disso ele é ignorado com um warning silencioso — o corpo do agente é autossuficiente e continua funcionando.
 
 ## Instalação — versão lite
 
@@ -65,7 +84,7 @@ export TRAVELPAYOUTS_TOKEN="seu_token_aqui"    # bash/zsh
 $env:TRAVELPAYOUTS_TOKEN = "seu_token_aqui"     # PowerShell
 ```
 
-3. Confira: `python3 scripts/fonte_aviasales.py BSB CGH 2026-08-28`. Se responder `TRAVELPAYOUTS_TOKEN ausente`, o terminal ainda não enxerga a variável — reabra-o.
+3. Confira: `python3 ~/.claude/skills/radar-passagens/scripts/fonte_aviasales.py BSB CGH 2026-08-28`. Se responder `TRAVELPAYOUTS_TOKEN ausente`, o terminal ainda não enxerga a variável — reabra-o.
 
 Opcional: `TRAVELPAYOUTS_MARKER` (id de afiliado) pelo mesmo caminho.
 
@@ -75,15 +94,16 @@ Opcional: `TRAVELPAYOUTS_MARKER` (id de afiliado) pelo mesmo caminho.
 - **Melhor período** — amostragem de datas **reais**: mínimo 5 por mês do período pedido, com ranking e oferta de ampliar a amostra.
 - **Ano inteiro** — protocolo próprio: ≥1 consulta real por mês (12) → ranqueia os meses pelos valores reais → +5 consultas no mês vencedor.
 - **Estratégia de economia** — o mapa: dias da semana que fogem do caro, comparação dos aeroportos da região e quando comprar (com alerta de preço).
-- **Multi-fonte** (completa) — Google Flights ao vivo, metabusca Kayak/Skyscanner e cache Aviasales, com a fonte de cada valor e alerta quando divergem.
+- **Multi-fonte** (completa) — Google Flights ao vivo, metabusca Kayak/Skyscanner e cache Aviasales, com a fonte de cada valor e alerta quando divergem (>30%; acima de 50%, alerta destacado).
 - **Dados reais sempre** — proibido estimar, extrapolar ou reaproveitar consulta antiga; prévia de calendário é triagem, nunca preço.
 
 ## Scripts (versão completa)
 
 | Script | Faz |
 |---|---|
+| `checar_ambiente.py` | Diagnóstico do ambiente (teste de seleção da skill): dependências, token, `modo_recomendado` e `comando_install` — JSON, nunca falha |
 | `buscar_voos.py` | Voos + preço mínimo geral e por companhia, duração total e espera por escala (JSON) |
-| `melhor_periodo.py` | Varre uma janela de datas e ranqueia os períodos; `--amostra N` consulta só N datas espalhadas |
+| `melhor_periodo.py` | Varre uma janela de datas e ranqueia os períodos; `--amostra N` consulta só N datas espalhadas; `--paralelo N` consulta N datas ao mesmo tempo (default 6 — 12 datas em ~8s contra ~63s sequencial) |
 | `validar_voos.py` | 8 regras de sanidade (rota, datas, companhias, faixa de preço, anti-stale, consistência) |
 | `fonte_navegador.py` | Metabusca Kayak/Skyscanner via Chrome real (Playwright) — preços de OTA, costumam ficar abaixo do Google |
 | `fonte_aviasales.py` | Cache de preços da Aviasales (requer token) |

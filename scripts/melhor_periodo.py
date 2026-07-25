@@ -10,8 +10,17 @@ Uso (so ida, preco por dia):
 Uso (amostragem: so N datas espalhadas na janela — periodos grandes/ano):
   melhor_periodo.py BSB CGH --inicio 2026-09-01 --fim 2026-09-30 --amostra 5
 
+Uso (paralelo: N datas consultadas ao mesmo tempo — default 6):
+  melhor_periodo.py BSB CGH --inicio 2026-09-01 --fim 2026-09-30 --amostra 5 --paralelo 6
+
 Imprime JSON: preco minimo por data de ida, ordenado do mais barato.
-Uma consulta por data (sequencial, com pausa) — janelas grandes demoram.
+Uma consulta por data, 6 em paralelo por padrao. Medido em 2026-07-25
+(BSB-CGH, 7 datas): sequencial 63s | --paralelo 4 47s | --paralelo 7 20s;
+12 datas com --paralelo 12 em 8s, sem rate limit e sem perda de resultado.
+Resposta vazia sob carga e sintoma de rate limit e o buscar_voos ja repete
+com backoff, entao paralelismo alto degrada o tempo, nunca o dado.
+--paralelo 1 volta ao sequencial com --pausa. A ordem das datas na saida
+nao depende do paralelismo.
 """
 import argparse
 import datetime as dtmod
@@ -21,6 +30,7 @@ import subprocess
 import sys
 import time
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -77,7 +87,10 @@ def main():
     ap.add_argument("--pausa", type=float, default=1.5)
     ap.add_argument("--amostra", type=int, default=None,
                     help="consultar so N datas espalhadas uniformemente na janela (em vez de todas)")
+    ap.add_argument("--paralelo", type=int, default=6,
+                    help="consultas simultaneas (default 6; 1 = sequencial com --pausa)")
     args = ap.parse_args()
+    args.paralelo = max(1, args.paralelo)
 
     d0 = dtmod.date.fromisoformat(args.inicio)
     d1 = dtmod.date.fromisoformat(args.fim)
@@ -88,22 +101,30 @@ def main():
         idxs = sorted({round(i * (len(datas) - 1) / (n - 1)) for i in range(n)}) if n > 1 else [0]
         datas = [datas[i] for i in idxs]
 
-    linhas = []
-    for d in datas:
+    def uma_data(d):
         # "is not None": --duracao 0 e valido (bate-volta no mesmo dia)
         volta = (d + dtmod.timedelta(days=args.duracao)).isoformat() if args.duracao is not None else None
         r = consulta(args.origem, args.destino, d.isoformat(), volta, args.moeda)
-        linhas.append(
-            {
-                "ida": d.isoformat(),
-                "volta": volta,
-                "preco_minimo": (r or {}).get("preco_minimo"),
-                "n_voos": (r or {}).get("n_voos", 0),
-                "erro": None if r else "consulta falhou",
-            }
-        )
-        print(f"# {d.isoformat()} -> {linhas[-1]['preco_minimo']}", file=sys.stderr)
-        time.sleep(args.pausa)
+        linha = {
+            "ida": d.isoformat(),
+            "volta": volta,
+            "preco_minimo": (r or {}).get("preco_minimo"),
+            "n_voos": (r or {}).get("n_voos", 0),
+            "erro": None if r else "consulta falhou",
+        }
+        print(f"# {d.isoformat()} -> {linha['preco_minimo']}", file=sys.stderr)
+        return linha
+
+    if args.paralelo > 1:
+        # subprocessos: o GIL nao atrapalha, as threads so esperam I/O.
+        # map preserva a ordem das datas, independente da ordem de chegada.
+        with ThreadPoolExecutor(max_workers=args.paralelo) as pool:
+            linhas = list(pool.map(uma_data, datas))
+    else:
+        linhas = []
+        for d in datas:
+            linhas.append(uma_data(d))
+            time.sleep(args.pausa)
 
     ok = [l for l in linhas if l["preco_minimo"]]
     out = {

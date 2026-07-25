@@ -14,7 +14,7 @@ Aviasales cache via Travelpayouts Data API v3 (`scripts/fonte_aviasales.py`):
 preços cacheados ~48h vistos por usuários (incluem OTAs), grátis com
 `TRAVELPAYOUTS_TOKEN`. São ESTIMATIVAS — rotular "vista em <found_at>" e
 confirmar no link. Gate de cobertura BR: `scripts/spike_aviasales.py`
-(spec: docs/superpowers/specs/2026-07-23-fontes-voos-design.md). Pesquisa
+(decisão registrada no histórico do repo). Pesquisa
 jul/2026: Amadeus self-service desligada, Kiwi/Skyscanner só parceiros,
 Decolar sem API pública — Aviasales é a única fonte grátis complementar.
 
@@ -57,7 +57,10 @@ Kayak + Skyscanner via Playwright (`scripts/fonte_navegador.py`), validado 2026-
   exata do voo específico.
 - Faixa de sanidade BSB↔CGH econômica: ida promocional ~R$230–300; ida normal/última
   hora R$800–1500; abaixo de ~R$150 ou acima de ~R$5000 (ida direta) = suspeito.
-- Divergência >30–40% entre fontes ou entre repetições = dado stale/tarifa esgotada.
+- Divergência entre fontes ou entre duas leituras da mesma rota **>30% = alerta**;
+  **>50% = alerta destacado** (dado provavelmente stale / tarifa esgotada). Não confundir
+  com a regra R8 do `validar_voos.py`, que exige repetição imediata da MESMA consulta
+  variar <25% — ali o intervalo é de segundos, não de fontes diferentes.
 
 Pontos de dado reais coletados em 2026-07-23 (referência de calibração):
 ida 28/08 R$810 (todas as diretas); RT 28/08→01/09 R$1493–2047; RT 14/09→21/09 R$1172.

@@ -66,7 +66,7 @@ Regras dos links:
 | S5 | Preços dentro da faixa plausível da rota (tabela abaixo) | alerta explícito + confirmar no link |
 | S6 | Duração do trecho plausível (ex.: BSB↔CGH direto ≈ 1h20–2h30) | alerta explícito |
 | S7 | Preço não parece congelado: se TODOS os dias de uma janela grande têm o MESMO preço, dado provavelmente stale | refazer busca / alertar |
-| S8 | Consistência: duas leituras da mesma rota não divergem >25–40% | alerta "dado volátil/esgotando"; confirmar no link |
+| S8 | Consistência: duas leituras da mesma rota não divergem >30% (acima de 50%, dado provavelmente stale) | alerta "dado volátil/esgotando"; confirmar no link |
 
 ## Faixas de sanidade e calibração (BRL, econômica)
 
