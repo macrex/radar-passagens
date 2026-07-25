@@ -84,7 +84,7 @@ Regras dos links:
 ## Dados reais vs prévia do calendário
 
 - O Google Flights tem dois tipos de número: a **pesquisa real** de uma data (fonte de verdade, refeita a cada consulta) e a **prévia** do calendário/visão de meses (estimativa em cache). É comum a prévia mostrar um valor e a pesquisa de fato retornar outro (às vezes menor). Por isso: prévia serve só de triagem de datas candidatas; TODO valor reportado deve vir da pesquisa real da data.
-- Protocolo de período (mês ou meses): amostrar no mínimo **5 datas reais** espalhadas no período (mais de um mês: ≥1 por mês E ≥5 no total) → ranquear pelos valores reais → perguntar se o usuário quer ampliar a amostra.
+- Protocolo de período (mês ou meses): amostrar no mínimo **5 datas reais POR MÊS** do período, espalhadas dentro de cada mês → ranquear pelos valores reais → perguntar se o usuário quer ampliar a amostra.
 - Protocolo de ano inteiro: triagem dos meses (sazonalidade + prévia) → ≥1 pesquisa real por mês (12) → ranquear meses pelo valor real → +5 pesquisas reais no melhor mês → reportar mês vencedor + amostra.
 - Sazonalidade BR para triagem de meses (tendência): **caros** — julho, dezembro–janeiro, feriados prolongados, alta de eventos locais (ex.: Carnaval no Rio/Salvador); **baratos** — março–maio e agosto–setembro fora de feriado. Sazonalidade nunca substitui a pesquisa real — só ordena o que pesquisar primeiro.
 
@@ -111,16 +111,24 @@ Formato do mapa (resposta a pedido de estratégia/economia) — 3 blocos:
 
 ## Relatório (formato padrão)
 
-Cabeçalho: rota, datas, tipo (ida / ida+volta), data e hora da consulta, aviso "preços a partir de — confirmar no checkout da companhia".
+Regra: **bem resumido, só o essencial** — cabeçalho de 1 linha, destaque do melhor preço, tabela enxuta (3–6 linhas: a mais barata + competitivas até ~15% acima), links. Sem parágrafos longos, sem repetir o pedido, sem explicar o processo.
 
-Tabela de IDA (uma linha por opção relevante — sempre incluir a mais barata + as competitivas até ~15% acima):
+Modelo:
 
-| Companhia | Partida → Chegada | Escalas (espera) | Duração total | Preço total (RT) | Link |
-|---|---|---|---|---|---|
-| GOL | 07:00 → 08:40 | direto | 1h40 | R$ 1.172 | [GF/GOL](...) |
-| LATAM | 09:15 → 12:30 | 1 (VCP, 55 min) | 3h15 | R$ 1.190 | [GF/LATAM](...) |
+> ✈️ **BSB → CGH** · ida 28/08 · volta 01/09 · consulta 25/07 21h
+> 💰 **A partir de R$ 1.083** — Azul, direto · preços "a partir de", confirmam no checkout
+>
+> | | Cia | Horário | Escalas | Tempo | Preço RT | Link |
+> |---|---|---|---|---|---|---|
+> | ⭐ | Azul | 20:05 → 21:50 | direto | 1h45 | **R$ 1.083** | [abrir](...) |
+> | | Azul | 12:00 → 13:45 | direto | 1h45 | R$ 1.166 | [abrir](...) |
+> | | GOL | 07:30 → 09:15 | direto | 1h45 | R$ 1.284 | [abrir](...) |
+>
+> ↩️ **Volta 01/09** (diretas, 1h45): Azul 07:15 · GOL 06:00 / 06:30 / 08:00
+> 📅 Acompanhar preços: [link da rota](...)
 
-- Coluna Escalas: cada conexão com aeroporto e espera (ex.: "1 (VCP, 55 min)"; "2 (CNF 1h10, GRU 45 min)").
-- Ida e volta: acrescentar tabela pequena de VOLTA (companhia, horários, escalas/esperas, duração) — sem coluna de preço, ou preço de ida avulsa marcado "referência".
-- Multi-aeroporto ("todos"): agrupar por aeroporto e destacar o mínimo de cada um.
-- Fechar com: mínimo geral, mínimo por companhia, recomendação (equilíbrio preço × escalas × horário) e o link geral da rota.
+- ⭐ marca a recomendação (equilíbrio preço × escalas × horário).
+- Escalas: cada conexão com aeroporto e espera na própria célula (ex.: "1 (VCP, 55 min)"; "2 (CNF 1h10, GRU 45 min)").
+- Volta com escala: mini-tabela em vez da linha única.
+- Multi-aeroporto ("todos"): uma linha de mínimo por aeroporto antes da tabela.
+- Período/ano: lista ranqueada das datas pesquisadas (⭐ na melhor, preço real em negrito), 1 linha de estatística (mín/mediana do período) e fechar perguntando: "Quero amostrar mais dias?".
