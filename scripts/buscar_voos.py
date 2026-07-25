@@ -19,6 +19,9 @@ Notas:
   round-trip a partir daquela ida (a volta e escolhida depois no site).
 - Rede: tenta o cliente nativo (primp) e cai para requests (que respeita
   HTTPS_PROXY/CA bundle). Rate limit do Google: retry com backoff.
+
+Saida: exit 0 = ok | exit 2 = erro de argumentos (argparse) |
+       exit 4 = nenhuma rota retornou voos (sem resultados).
 """
 import argparse
 import datetime as dtmod
@@ -28,6 +31,10 @@ import sys
 import time
 
 from fast_flights import FlightQuery, create_query, get_flights, parser
+
+# console Windows (cp1252) nao imprime unicode; forca utf-8 na saida
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 UA = {
     "User-Agent": (
@@ -44,8 +51,9 @@ CIA_IATA = {"latam": "LA", "gol": "G3", "azul": "AD"}
 
 
 def fetch_once(query):
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     try:
-        return get_flights(query, proxy=os.environ.get("HTTPS_PROXY")), "primp"
+        return get_flights(query, proxy=proxy), "primp"
     except Exception:
         import requests
 
@@ -54,22 +62,41 @@ def fetch_once(query):
 
 
 def fetch_results(query):
-    """Retry com backoff: o Google devolve pagina vazia sob rate limit."""
+    """Retry com backoff: o Google devolve pagina vazia sob rate limit —
+    o parser nao levanta excecao, so devolve lista vazia; por isso resultado
+    vazio tambem conta como tentativa falha."""
     last = None
     for i in range(TENTATIVAS):
         try:
-            return fetch_once(query)
+            res, fonte = fetch_once(query)
+            if res:
+                return res, fonte
+            last = RuntimeError("resposta vazia (rate limit?)")
         except Exception as e:
             last = e
-            if i < TENTATIVAS - 1:
-                time.sleep(BACKOFF[min(i, len(BACKOFF) - 1)])
+        if i < TENTATIVAS - 1:
+            time.sleep(BACKOFF[min(i, len(BACKOFF) - 1)])
     raise last
 
 
 def dt(simple):
-    d = list(simple.date) + [0, 0, 0]
-    t = (list(simple.time) + [0, 0])[:2]
+    """Hora 0 vem como None do Google (time=[None, 25] = 00:25) — normaliza."""
+    d = [x or 0 for x in list(simple.date) + [0, 0, 0]]
+    t = [x or 0 for x in (list(simple.time) + [0, 0])[:2]]
     return f"{d[0]:04d}-{d[1]:02d}-{d[2]:02d}T{t[0]:02d}:{t[1]:02d}"
+
+
+def codigo_cia(f):
+    """f.type e o codigo IATA da cia OU a string "multi" (itinerario operado
+    por mais de uma cia). "multi" NUNCA pode virar filtro de link (nao e um
+    codigo valido); nesse caso so ha codigo se todas as cias do itinerario
+    forem a mesma — dai usa o mapa nome->IATA."""
+    nomes = [a.lower() for a in (f.airlines or [])]
+    if f.type and f.type != "multi":
+        return f.type
+    if len(set(nomes)) == 1:
+        return CIA_IATA.get(nomes[0])
+    return None
 
 
 def link_compra(origem, destino, data, volta, moeda, cia_codigo, max_paradas):
@@ -119,7 +146,7 @@ def flight_to_dict(f, origem, destino, data, volta, moeda, max_paradas):
     # ao contrario de "chegada final - partida inicial" em horarios locais)
     completo = all(x is not None for x in duracoes + esperas)
     espera_total = sum(x for x in esperas if x is not None) if escalas else 0
-    cia_codigo = f.type or CIA_IATA.get((f.airlines[0].lower() if f.airlines else ""), None)
+    cia_codigo = codigo_cia(f)
     return {
         "cia_codigo": cia_codigo,
         "cias": list(f.airlines),
@@ -202,15 +229,18 @@ def main():
 
     if not todos:
         print(json.dumps({"erro": "nenhuma rota retornou voos", "detalhes": erros}, ensure_ascii=False))
-        sys.exit(2)
+        sys.exit(4)  # 4 = sem resultados (2 e reservado ao erro de argparse)
 
     por_cia, por_destino = {}, {}
     for v in todos:
+        p = v["preco"]
+        if p is None:
+            continue
         for cia in v["cias"] or ["?"]:
-            if por_cia.get(cia) is None or v["preco"] < por_cia[cia]:
-                por_cia[cia] = v["preco"]
-        if por_destino.get(v["destino"]) is None or v["preco"] < por_destino[v["destino"]]:
-            por_destino[v["destino"]] = v["preco"]
+            if por_cia.get(cia) is None or p < por_cia[cia]:
+                por_cia[cia] = p
+        if por_destino.get(v["destino"]) is None or p < por_destino[v["destino"]]:
+            por_destino[v["destino"]] = p
 
     out = {
         "consulta": {
@@ -221,6 +251,7 @@ def main():
             "moeda": args.moeda,
             "tipo": "ida-volta" if args.volta else "ida",
         },
+        "consultado_em": dtmod.datetime.now().isoformat(timespec="seconds"),
         "fonte": "google-flights/" + "+".join(sorted(fontes)),
         "urls_busca": urls,
         "n_voos": len(todos),

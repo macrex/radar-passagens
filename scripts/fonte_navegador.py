@@ -31,7 +31,9 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 ESPERA_RENDER_MS = 12000
 MAX_CARDS = 10
 PRECO_RE = re.compile(r"R\$\s*([\d.]{3,9})")
-HORARIO_RE = re.compile(r"(\d{1,2}:\d{2})\s*.\s*(\d{1,2}:\d{2})")
+# separador explicito: um "." nao escapado atravessava \n e colava horarios
+# de linhas diferentes ("GOL\n09:00\n10:30" virava 0:30)
+HORARIO_RE = re.compile(r"(\d{1,2}:\d{2})\s*[–—\-a>à]?\s*(\d{1,2}:\d{2})")
 DURACAO_RE = re.compile(r"(\d+)h\s*(\d+)?min|(\d+)h\b")
 CIAS_CONHECIDAS = ["LATAM", "GOL", "Azul", "TAP", "American", "United", "Delta",
                    "Copa", "Avianca", "Iberia", "Air France", "KLM", "Lufthansa",
@@ -66,6 +68,7 @@ def preco_de(texto):
 
 def parse_card(texto):
     txt = texto.replace("\xa0", " ")
+    t = txt.lower()
     preco = preco_de(txt)
     if preco is None:
         return None
@@ -73,11 +76,11 @@ def parse_card(texto):
     duracoes = [m.group(0) for m in DURACAO_RE.finditer(txt)][:2]
     return {
         "preco": preco,
-        "cias": [c for c in CIAS_CONHECIDAS if c.lower() in txt.lower()],
+        "cias": [c for c in CIAS_CONHECIDAS if c.lower() in t],
         "horarios": horarios,          # [ida, volta] quando ida-volta
         "duracoes": duracoes,
-        "paradas": "direto" if "direto" in txt.lower() else ("com escala" if "escala" in txt.lower() else None),
-        "anuncio": "anúncio" in txt.lower() or "anúncio" in txt.lower(),
+        "paradas": "direto" if "direto" in t else ("com escala" if "escala" in t else None),
+        "anuncio": "anúncio" in t or "patrocinado" in t or "sponsored" in t,
     }
 
 
@@ -85,9 +88,13 @@ def consulta_site(page, site, url):
     page.goto(url, timeout=50000, wait_until="domcontentloaded")
     page.wait_for_timeout(ESPERA_RENDER_MS)
     corpo = page.inner_text("body")
-    if BLOQUEIO_RE.search(corpo):
-        raise RuntimeError("pagina de bloqueio/captcha (anti-bot)")
     cards = page.locator(SITES[site]["card"])
+    n_cards = cards.count()
+    # so e bloqueio se o aviso esta no TOPO da pagina E nao ha nenhum card:
+    # o rodape legitimo "protegido por reCAPTCHA" casava e descartava
+    # paginas perfeitamente validas
+    if n_cards == 0 and BLOQUEIO_RE.search(corpo[:2000]):
+        raise RuntimeError("pagina de bloqueio/captcha (anti-bot)")
     voos = []
     for i in range(min(MAX_CARDS, cards.count())):
         try:
@@ -157,8 +164,12 @@ def main():
         ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
         page = ctx.new_page()
         for site in sites:
-            url = SITES[site]["url"](origem, destino, args.data, args.volta)
+            url = None
             try:
+                # montar a URL dentro do try: data mal formatada levanta
+                # ValueError e nao pode furar o fail-open nem perder o que
+                # ja foi coletado de outros sites
+                url = SITES[site]["url"](origem, destino, args.data, args.volta)
                 out["resultados"].append(consulta_site(page, site, url))
             except Exception as e:  # fail-open por site
                 out["erros"].append({"site": site, "url": url, "erro": f"{type(e).__name__}: {str(e)[:200]}"})

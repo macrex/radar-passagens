@@ -31,7 +31,11 @@ def consulta(origem, destino, data, volta, moeda):
     cmd = [sys.executable, os.path.join(HERE, "buscar_voos.py"), origem, destino, data, "--moeda", moeda]
     if volta:
         cmd += ["--volta", volta]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", timeout=120)
+    except subprocess.TimeoutExpired:
+        return None
     if p.returncode != 0:
         return None
     try:
@@ -86,7 +90,8 @@ def main():
 
     linhas = []
     for d in datas:
-        volta = (d + dtmod.timedelta(days=args.duracao)).isoformat() if args.duracao else None
+        # "is not None": --duracao 0 e valido (bate-volta no mesmo dia)
+        volta = (d + dtmod.timedelta(days=args.duracao)).isoformat() if args.duracao is not None else None
         r = consulta(args.origem, args.destino, d.isoformat(), volta, args.moeda)
         linhas.append(
             {
@@ -103,6 +108,7 @@ def main():
     ok = [l for l in linhas if l["preco_minimo"]]
     out = {
         "consulta": vars(args),
+        "consultado_em": dtmod.datetime.now().isoformat(timespec="seconds"),
         "estatisticas": calcula_estatisticas([l["preco_minimo"] for l in ok]),
         "por_dia_semana": calcula_por_dia_semana(ok),
         "melhores": sorted(ok, key=lambda l: l["preco_minimo"])[:10],

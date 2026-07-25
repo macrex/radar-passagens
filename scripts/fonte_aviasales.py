@@ -14,6 +14,13 @@ Uso:
 Requisitos:
   env TRAVELPAYOUTS_TOKEN  (obrigatorio) — token de travelpayouts.com
   env TRAVELPAYOUTS_MARKER (opcional)    — marker de afiliado no link_compra
+
+Saida: exit 0 = ok | exit 2 = erro de argumentos (argparse) |
+       exit 3 = pre-requisito ausente (token/requests) |
+       exit 4 = cache sem dados para a(s) rota(s)/data(s).
+
+A faixa de sanidade de preco e em BRL e so se aplica com --moeda BRL
+(em CLP/COP/JPY os valores nominais sao muito maiores e zerariam tudo).
 """
 import argparse
 import datetime as dtmod
@@ -58,14 +65,20 @@ def link_compra(fragmento, marker):
     return url
 
 
-def transformar(itens, origem, destino, marker, agora):
+def transformar(itens, origem, destino, marker, agora, faixa_brl=True):
     """Itens crus da API -> voos no formato do buscar_voos.py.
     Filtra cache velho (> IDADE_MAX_DIAS, quando found_at existe) e preco
-    fora da faixa de sanidade. Retorna (voos, n_descartados)."""
+    fora da faixa de sanidade. A faixa e em BRL: com outra moeda
+    (faixa_brl=False) so o tipo do preco e checado, senao CLP/COP/JPY —
+    onde o valor nominal e ordens de grandeza maior — zerariam tudo.
+    Retorna (voos, n_descartados)."""
     voos, descartados = [], 0
     for it in itens:
         preco = it.get("price")
-        if not isinstance(preco, (int, float)) or not (PRECO_MIN <= preco <= PRECO_MAX):
+        if not isinstance(preco, (int, float)):
+            descartados += 1
+            continue
+        if faixa_brl and not (PRECO_MIN <= preco <= PRECO_MAX):
             descartados += 1
             continue
         visto_em = it.get("found_at")
@@ -106,9 +119,7 @@ CHAVES_ORDENACAO = {
 }
 
 
-def consulta_rota(origem, destino, args, token):
-    import requests
-
+def consulta_rota(origem, destino, args, token, requests):
     params = {
         "origin": origem,
         "destination": destino,
@@ -142,6 +153,16 @@ def main():
     ap.add_argument("--ordenar", choices=["preco", "tempo", "escalas"], default="preco")
     args = ap.parse_args()
 
+    # import aqui (e nao dentro da consulta): antes, requests ausente virava
+    # excecao por rota e o script saia como "cache sem dados"
+    try:
+        import requests
+    except ImportError:
+        erro_saida(3, {
+            "fonte": "aviasales-cache",
+            "erro": "requests nao instalado: pip install requests",
+        })
+
     token = os.environ.get("TRAVELPAYOUTS_TOKEN")
     if not token:
         erro_saida(3, {
@@ -156,12 +177,14 @@ def main():
     destinos = [d.strip().upper() for d in args.destino.split(",")]
     agora = dtmod.datetime.now(dtmod.timezone.utc)
 
+    faixa_brl = args.moeda.upper() == "BRL"
+
     todos, erros, descartados = [], [], 0
     for o in origens:
         for d in destinos:
             try:
-                itens = consulta_rota(o, d, args, token)
-                voos, desc = transformar(itens, o, d, marker, agora)
+                itens = consulta_rota(o, d, args, token, requests)
+                voos, desc = transformar(itens, o, d, marker, agora, faixa_brl)
                 todos.extend(voos)
                 descartados += desc
             except Exception as e:
@@ -169,12 +192,22 @@ def main():
             time.sleep(0.3)
 
     if not todos:
-        erro_saida(2, {
+        payload = {
             "fonte": "aviasales-cache",
             "erro": "cache sem dados para a(s) rota(s)/data(s)",
-            "descartados_por_sanidade": descartados or None,
+            "descartados_por_sanidade": descartados,
             "detalhes": erros or None,
-        })
+        }
+        if descartados:
+            payload["dica"] = (
+                f"{descartados} resultado(s) descartado(s): preco fora da faixa de sanidade "
+                f"BRL [{PRECO_MIN}, {PRECO_MAX}] (aplicada porque --moeda BRL) "
+                f"ou cache mais velho que {IDADE_MAX_DIAS} dias"
+                if faixa_brl else
+                f"{descartados} resultado(s) descartado(s): preco invalido ou cache mais "
+                f"velho que {IDADE_MAX_DIAS} dias (faixa BRL nao aplicada em {args.moeda.upper()})"
+            )
+        erro_saida(4, payload)
 
     por_cia = {}
     for v in todos:

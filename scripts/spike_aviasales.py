@@ -10,7 +10,9 @@ Uso:
 
 Criterio: GO se ALGUMA rota tiver preco em >=50%% dos dias do mes;
 NO-GO se todas ficarem abaixo (dai reavaliar plano B: SerpAPI/Duffel).
-Exit 0 = GO, 1 = NO-GO, 3 = sem token.
+Se NENHUMA rota respondeu (rede fora, token invalido/401), o veredicto e
+INDETERMINADO — nao da para concluir NO-GO sem dado.
+Exit 0 = GO, 1 = NO-GO, 3 = sem token, 4 = INDETERMINADO.
 """
 import argparse
 import calendar
@@ -46,7 +48,7 @@ def main():
 
     import requests
 
-    resultados, alguma_go = [], False
+    resultados, alguma_go, sucessos = [], False, 0
     for origem, destino in ROTAS:
         try:
             r = requests.get(API, params={
@@ -62,6 +64,7 @@ def main():
             cobertura = len(dias) / dias_no_mes
             go = cobertura >= CORTE
             alguma_go = alguma_go or go
+            sucessos += 1
             resultados.append({
                 "rota": f"{origem}-{destino}", "mes": mes,
                 "dias_com_preco": len(dias), "dias_no_mes": dias_no_mes,
@@ -72,15 +75,23 @@ def main():
             resultados.append({"rota": f"{origem}-{destino}", "erro": f"{type(e).__name__}: {e}"})
         time.sleep(0.5)
 
-    veredicto = "GO" if alguma_go else "NO-GO"
+    # nenhuma rota respondeu = falta de dado, nao evidencia contra o cache
+    if sucessos == 0:
+        veredicto = "INDETERMINADO"
+    else:
+        veredicto = "GO" if alguma_go else "NO-GO"
     print(json.dumps({
         "veredicto": veredicto,
         "criterio": f"GO se alguma rota com cobertura >= {int(CORTE * 100)}% dos dias de {mes}",
+        "rotas_ok": sucessos,
+        "rotas_com_erro": len(resultados) - sucessos,
         "rotas": resultados,
         "proximo_passo": "GO: usar fonte_aviasales.py no fluxo da skill | "
-                         "NO-GO: reavaliar plano B (SerpAPI/Duffel) na spec",
+                         "NO-GO: reavaliar plano B (SerpAPI/Duffel) na spec | "
+                         "INDETERMINADO: nenhuma rota respondeu (rede/token) — "
+                         "corrigir o acesso e repetir o spike",
     }, ensure_ascii=False, indent=1))
-    sys.exit(0 if alguma_go else 1)
+    sys.exit(4 if sucessos == 0 else (0 if alguma_go else 1))
 
 
 if __name__ == "__main__":

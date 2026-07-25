@@ -1,0 +1,2 @@
+# 3a fonte (metabusca Kayak/Skyscanner); exige Google Chrome instalado; depois: python -m playwright install chromium
+playwright
