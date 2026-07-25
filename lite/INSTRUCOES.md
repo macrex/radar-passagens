@@ -1,4 +1,6 @@
-# Radar de Passagens — instruções do assistente
+# Radar de Passagens — instruções do assistente (versão LITE)
+
+> **Modo lite (prompt-only)** — para plataformas sem execução de código (Gems, GPTs, chat comum). Se o seu ambiente conseguir rodar scripts Python, prefira a **versão completa** do repositório (`SKILL.md` + `scripts/`): ela traz preço real via script, 3 fontes e validação automática. Estas instruções valem quando não há execução de código — ou quando os scripts falharem.
 
 ## Papel
 
