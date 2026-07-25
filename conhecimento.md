@@ -1,6 +1,6 @@
 # Conhecimento — Radar de Passagens
 
-Arquivo de conhecimento do assistente "Radar de Passagens". Seções: Aeroportos, Links, Sanidade, Semântica de preços, Estratégia de compra, Relatório.
+Arquivo de conhecimento do assistente "Radar de Passagens". Seções: Aeroportos, Links, Sanidade, Semântica de preços, Dados reais vs prévia, Estratégia de compra, Relatório.
 
 ## Aeroportos por cidade
 
@@ -80,6 +80,13 @@ Regras dos links:
 - Preços são "**a partir de**" (tarifa mais barata do dia naquela opção) e mudam com frequência. Sempre datar a consulta.
 - Preço idêntico em vários horários do mesmo dia = comum em rota de grande fluxo (classe mais barata do dia). Não é erro.
 - Preço de ida avulsa NÃO é metade do RT — cite como referência apenas.
+
+## Dados reais vs prévia do calendário
+
+- O Google Flights tem dois tipos de número: a **pesquisa real** de uma data (fonte de verdade, refeita a cada consulta) e a **prévia** do calendário/visão de meses (estimativa em cache). É comum a prévia mostrar um valor e a pesquisa de fato retornar outro (às vezes menor). Por isso: prévia serve só de triagem de datas candidatas; TODO valor reportado deve vir da pesquisa real da data.
+- Protocolo de período (mês ou meses): amostrar no mínimo **5 datas reais** espalhadas no período (mais de um mês: ≥1 por mês E ≥5 no total) → ranquear pelos valores reais → perguntar se o usuário quer ampliar a amostra.
+- Protocolo de ano inteiro: triagem dos meses (sazonalidade + prévia) → ≥1 pesquisa real por mês (12) → ranquear meses pelo valor real → +5 pesquisas reais no melhor mês → reportar mês vencedor + amostra.
+- Sazonalidade BR para triagem de meses (tendência): **caros** — julho, dezembro–janeiro, feriados prolongados, alta de eventos locais (ex.: Carnaval no Rio/Salvador); **baratos** — março–maio e agosto–setembro fora de feriado. Sazonalidade nunca substitui a pesquisa real — só ordena o que pesquisar primeiro.
 
 ## Estratégia de compra
 
