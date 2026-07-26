@@ -63,6 +63,25 @@ def calcula_estatisticas(precos):
     return {"n": n, "min": min(precos), "p25": p25, "mediana": mediana, "max": max(precos)}
 
 
+def datas_amostradas(d0, d1, amostra):
+    """Datas da janela [d0, d1]. Com `amostra` = N < tamanho da janela, devolve
+    N datas espalhadas uniformemente, sempre incluindo as pontas."""
+    if d1 < d0:
+        return []
+    datas = [d0 + dtmod.timedelta(days=i) for i in range((d1 - d0).days + 1)]
+    if not amostra or amostra >= len(datas):
+        return datas
+    if amostra == 1:
+        return [datas[0]]
+    idxs = sorted({round(i * (len(datas) - 1) / (amostra - 1)) for i in range(amostra)})
+    for i in range(len(datas)):  # colisao de arredondamento: completa ate N
+        if len(idxs) == amostra:
+            break
+        if i not in idxs:
+            idxs = sorted(idxs + [i])
+    return [datas[i] for i in idxs]
+
+
 def calcula_por_dia_semana(linhas_ok):
     grupos = {d: [] for d in DIAS_SEMANA}
     for l in linhas_ok:
@@ -94,12 +113,11 @@ def main():
 
     d0 = dtmod.date.fromisoformat(args.inicio)
     d1 = dtmod.date.fromisoformat(args.fim)
-    datas = [d0 + dtmod.timedelta(days=i) for i in range((d1 - d0).days + 1)]
-    if args.amostra and 0 < args.amostra < len(datas):
-        n = args.amostra
-        # indices espalhados uniformemente, sempre incluindo as pontas
-        idxs = sorted({round(i * (len(datas) - 1) / (n - 1)) for i in range(n)}) if n > 1 else [0]
-        datas = [datas[i] for i in idxs]
+    datas = datas_amostradas(d0, d1, args.amostra)
+    if not datas:
+        print(json.dumps({"erro": f"janela invalida: --inicio {args.inicio} > --fim {args.fim}"},
+                         ensure_ascii=False))
+        sys.exit(2)
 
     def uma_data(d):
         # "is not None": --duracao 0 e valido (bate-volta no mesmo dia)
@@ -126,7 +144,7 @@ def main():
             linhas.append(uma_data(d))
             time.sleep(args.pausa)
 
-    ok = [l for l in linhas if l["preco_minimo"]]
+    ok = [l for l in linhas if l["preco_minimo"] is not None]
     out = {
         "consulta": vars(args),
         "consultado_em": dtmod.datetime.now().isoformat(timespec="seconds"),

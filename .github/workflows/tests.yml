@@ -1,0 +1,21 @@
+name: Testes
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependencias
+        # os testes cobrem funcoes puras; fast-flights e requests entram porque
+        # buscar_voos.py importa a lib no topo do modulo
+        run: pip install pytest fast-flights typing_extensions requests
+      - name: Rodar testes
+        run: python -m pytest tests/ -q

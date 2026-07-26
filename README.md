@@ -112,6 +112,15 @@ Opcional: `TRAVELPAYOUTS_MARKER` (id de afiliado) pelo mesmo caminho.
 
 Todas as fontes extras são **fail-open**: se falharem, a busca principal segue e o agente avisa.
 
+## Testes
+
+```bash
+pip install pytest
+python -m pytest tests/ -q
+```
+
+73 testes cobrindo as funções puras: resolução cidade→aeroporto, estatísticas e amostragem de período, filtros de sanidade do cache, parse dos cards de metabusca, cálculo de escalas e ordenação. Não fazem rede — rodam em menos de 1s e valem como rede de proteção antes de qualquer mudança nos scripts.
+
 ## Limitações
 
 - Preços são "a partir de" e mudam a toda hora — a confirmação é sempre no checkout da companhia ou do vendedor.

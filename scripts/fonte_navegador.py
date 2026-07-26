@@ -80,7 +80,7 @@ def parse_card(texto):
         "horarios": horarios,          # [ida, volta] quando ida-volta
         "duracoes": duracoes,
         "paradas": "direto" if "direto" in t else ("com escala" if "escala" in t else None),
-        "anuncio": "anúncio" in t or "patrocinado" in t or "sponsored" in t,
+        "anuncio": any(m in t for m in ("anúncio", "anuncio", "patrocinado", "sponsored")),
     }
 
 
