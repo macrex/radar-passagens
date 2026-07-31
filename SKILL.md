@@ -34,9 +34,22 @@ plataformas sem código (Gems/GPTs), não material desta versão.
 Fonte: Google Flights via lib `fast-flights` (sem chave de API). Dependências:
 `pip install -r <pasta-da-skill>/requirements.txt`; metabusca (3ª fonte): o mesmo com
 `-r requirements-extra.txt`, mais `python -m playwright install chromium` e **Google
-Chrome instalado** (o Chromium do Playwright é barrado pelo anti-bot). **Token opcional**
+Chrome instalado** (o Chromium do Playwright é barrado pelo anti-bot em alguns IPs/momentos —
+em servidor já passou sem Chrome real). **Token opcional**
 (2ª fonte): se `TRAVELPAYOUTS_TOKEN` existir no ambiente, a fonte Aviasales ativa; senão
 avise que está desativada — setup completo no README §Token opcional.
+
+**O Google sozinho superestima.** Medido em 31/07/2026, BSB→CGH 28/09→01/10: Google R$ 1.079 ×
+Kayak R$ 680 × tela do titular R$ 639 — 37% na mesma consulta, no mesmo dia (o 639 nem existia no
+HTML devolvido ao script). Em outra janela as duas fontes bateram, então **não há fator de
+correção**: quando a pergunta é "quanto custa" ou "o mais barato", rode `buscar_voos.py` **e**
+`fonte_navegador.py` e reporte o valor de cada fonte com o nome dela ao lado — nunca funda num
+número só. Divergência >20%: diga na resposta. Evidência: `references/fontes.md`.
+
+**Rodando em servidor/cron** (agente hospedado, headless): use `scripts/radar.sh` como única porta
+de entrada — o `python3` do sistema não tem as dependências e a sessão limpa do cron não tem
+`PLAYWRIGHT_BROWSERS_PATH`, o que mata a metabusca. Instalação e validação:
+`references/instalacao-servidor.md`.
 
 ## Scripts (sempre por caminho absoluto: `<pasta-da-skill>/scripts/<nome>.py`)
 

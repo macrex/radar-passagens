@@ -80,6 +80,7 @@ Regras dos links:
 - Preços são "**a partir de**" (tarifa mais barata do dia naquela opção) e mudam com frequência. Sempre datar a consulta.
 - Preço idêntico em vários horários do mesmo dia = comum em rota de grande fluxo (classe mais barata do dia). Não é erro.
 - Preço de ida avulsa NÃO é metade do RT — cite como referência apenas.
+- **O preço do Google não é o piso do mercado.** Medido em 31/07/2026, BSB→CGH 28/09→01/10, tudo no mesmo dia: R$ 1.079 numa consulta automatizada do Google, R$ 639 na tela do titular e R$ 680 no Kayak — a diferença são as ofertas de agências (123Milhas, Decolar, maxmilhas, Kiwi.com...) que a tela agrega. Em outra janela (28/08→01/09) os valores bateram, então não existe desconto fixo a aplicar. Ao reportar: diga que o valor é do Google e recomende conferir uma metabusca (Kayak/Skyscanner) antes de comprar. Tarifa de agência exige checar bagagem e cancelamento no vendedor.
 
 ## Dados reais vs prévia do calendário
 

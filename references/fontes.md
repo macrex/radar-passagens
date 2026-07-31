@@ -31,6 +31,30 @@ Kayak + Skyscanner via Playwright (`scripts/fonte_navegador.py`), validado 2026-
   confirmar no site do vendedor" (bagagem/cancelamento podem diferir).
 - Parse por regex sobre o texto do card: resiste a troca de classe interna, mas se o
   seletor do card mudar o script devolve "nenhum resultado legivel" (fail-open).
+- **Chromium headless do Playwright passou no Kayak em 31/07/2026** (servidor Hermes, sem
+  Chrome real instalado): mesmo resultado da estação com Chrome, R$ 680 nas duas. O anti-bot
+  do Kayak varia com IP/momento — trate Chrome real como preferível, não como requisito.
+- Card de anúncio escapa do filtro de vez em quando: em 31/07/2026 apareceu "R$ 278" com
+  horários `13:00-10:13` (chegada antes da partida em voo direto). Descarte resultado sem
+  companhia ou com horário incoerente antes de reportar mínimo.
+
+### Quanto o Google diverge (medido 31/07/2026)
+
+Mesma rota, mesmas datas, mesmo dia — BSB→CGH ida 28/09 volta 01/10:
+
+| Fonte | Menor preço |
+|---|---|
+| Google Flights via `buscar_voos.py` (HTTP, sem sessão) | R$ 1.079 |
+| Kayak via `fonte_navegador.py` | R$ 680 |
+| Google Flights no navegador logado do titular | R$ 639 |
+
+O HTML recebido pelo script continha só 1.079/1.092/1.186/1.189 — o 639 **não estava na
+resposta**, então não é erro de parse: o Google serve conteúdo diferente para requisição sem
+sessão, e a tela do titular agrega ofertas de OTA. Testado também com GRU e VCP (mínimo 837):
+não é questão de aeroporto.
+
+Não há fator de correção: na janela 28/08→01/09 as duas fontes bateram (R$ 1.245 × R$ 1.248).
+**Consulte as duas e reporte as duas, cada valor com o nome da fonte.**
 
 ## Fallbacks (se o parse do Google quebrar)
 
